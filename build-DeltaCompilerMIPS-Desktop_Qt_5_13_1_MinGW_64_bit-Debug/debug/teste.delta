@@ -1,0 +1,27 @@
+void main() {
+	int a = 5;
+	
+	when(a) {
+		is (4) {
+			print(100);
+		}
+		
+		is (5) {
+			int b = 100;
+			
+			when (b) {
+				is (4) {
+					print(200);
+				}
+				
+				is (100) {
+					print(82);
+				}
+			}
+		}
+		
+		is (7) {
+			print(300);
+		}
+	}
+}
