@@ -10,138 +10,106 @@ std::string Generator::getCode() {
     result += "\n";
     result += ".text\n";
     result += textSection;
-    result += "\tHLT 0";
+    result += "\tli $v0, 10\n";
+    result += "\tsyscall\n";
 
     return result;
 }
 
 void Generator::addImmediate(const int &immediate) {
-    stackSize += 1;
-
-    addInstruction("LDI", immediate);
-    addInstruction("STO", stackTop());
+    addInstruction("subi", "$sp", "$sp", 4);
+    addInstruction("addi", "$t0", "$zero", immediate);
+    addInstruction("sw", "$t0", "0($sp)");
 }
 
 void Generator::addIdentifier(const Symbol &symbol) {
-    stackSize += 1;
-
-    addInstruction("LD", getFullIdentifier(symbol));
-    addInstruction("STO", stackTop());
+    addInstruction("subi", "$sp", "$sp", 4);
+    addInstruction("lw", "$t0", getFullIdentifier(symbol));
+    addInstruction("sw", "$t0", "0($sp)");
 }
 
 void Generator::addArrayIdentifier(const Symbol &symbol) {
-    addInstruction("LD", stackTop());
-    addInstruction("STO", "$indr");
-    addInstruction("LDV", getFullIdentifier(symbol));
-    addInstruction("STO", stackTop());
+    //addInstruction("LD", stackTop());
+    //addInstruction("STO", "$indr");
+    //addInstruction("LDV", getFullIdentifier(symbol));
+    //addInstruction("STO", stackTop());
 }
 
 void Generator::duplicateStackTop() {
-    addInstruction("LD", stackTop());
-
-    stackSize += 1;
-    addInstruction("STO", stackTop());
+    addInstruction("lw", "$t0", "0($sp)");
+    addInstruction("subi", "$sp", "$sp", 4);
+    addInstruction("sw", "$t0", "0($sp)");
 }
 
-void Generator::popStack() {
-    stackSize -= 1;
+void Generator::popStack() { // TODO: Cuidar de tamanhos diferentes!
+    addInstruction("addi", "$sp", "$sp", 4);
 }
+
+// TODO: Criar função pra dar push na stack arbitrariamente
 
 void Generator::addBinaryOperation(const OperationType &operationType) {
     switch (getOperationCategory(operationType)) {
         case CATEGORY_ARIT_HIGH:
         case CATEGORY_ARIT_LOW:
         case CATEGORY_BIT: {
-            std::string instructionName = getInstructionNameFromOperation(operationType);
+            std::string operationInstructionName = getInstructionNameFromOperation(operationType);
 
-            addInstruction("LD", stackTop() - 1);
-            addInstruction(instructionName, stackTop());
-            stackSize -= 2;
+            addInstruction("lw", "$t0", "4($sp)");
+            addInstruction("lw", "$t1", "0($sp)");
+            addInstruction(operationInstructionName, "$t2", "$t0", "$t1");
 
-            stackSize += 1;
-            addInstruction("STO", stackTop());
+            addInstruction("addi", "$sp", "$sp", 8);
+            addInstruction("subi", "$sp", "$sp", 4);
+            addInstruction("sw", "$t2", "0($sp)");
             break;
         }
 
         case CATEGORY_RELATIONAL: {
             if (operationType == OP_OR || operationType == OP_AND) {
-                std::string instructionName = getInstructionNameFromOperation(operationType);
-                pushIsZero(stackTop() - 1);
-                pushIsZero(stackTop() - 1);
+                std::string operationInstructionName = getInstructionNameFromOperation(operationType);
 
-                addInstruction("LD", stackTop() - 1);
-                addInstruction("XORI", 1);
-                addInstruction("STO", stackTop() - 1);
+                addInstruction("lw", "$t0", "4($sp)");
+                addInstruction("xori", "$t0", "$t0", 1);
 
-                addInstruction("LD", stackTop());
-                addInstruction("XORI", 1);
-                addInstruction("STO", stackTop());
+                addInstruction("lw", "$t1", "0($sp)");
+                addInstruction("xori", "$t1", "$t1", 1);
+                addInstruction(operationInstructionName, "$t2", "$t0", "$t1");
 
-                addInstruction("LD", stackTop() - 1);
-                addInstruction(instructionName, stackTop());
-
-                stackSize -= 3;
-                addInstruction("STO", stackTop());
+                addInstruction("addi", "$sp", "$sp", 8);
+                addInstruction("subi", "$sp", "$sp", 4);
+                addInstruction("sw", "$t2", "0($sp)");
             } else {
-                addInstruction("LD", stackTop() - 1);
-                addInstruction("SUB", stackTop());
-                addInstruction("STO", stackTop());
+                addInstruction("lw", "$t0", "4($sp)");
+                addInstruction("lw", "$t1", "0($sp)");
+                addInstruction("sub", "$t2", "$t0", "$t1");
+
+                addInstruction("addi", "$sp", "$sp", 8);
+                addInstruction("subi", "$sp", "$sp", 4);
 
                 switch (operationType) {
-                    case OP_GREATER: // $n == 0 && $z == 0
-                        pushIsNegative(stackTop());
-                        pushIsZero(stackTop() - 1);
-
-                        addInstruction("LD", stackTop() - 1);
-                        addInstruction("XORI", 1);
-                        addInstruction("STO", stackTop() - 1);
-
-                        addInstruction("LD", stackTop());
-                        addInstruction("XORI", 1);
-                        addInstruction("AND", stackTop() - 1);
-
-                        stackSize -= 3;
-                        addInstruction("STO", stackTop());
+                    case OP_GREATER:
+                        addInstruction("sgt", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
-                    case OP_SMALLER: // $n == 1
-                        stackSize -= 2;
-                        pushIsNegative(stackTop() + 2);
+                    case OP_SMALLER:
+                        addInstruction("slt", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
-                    case OP_GREATER_EQ: // $n == 0 || $z == 1
-                        pushIsNegative(stackTop());
-                        pushIsZero(stackTop() - 1);
-
-                        addInstruction("LD", stackTop() - 1);
-                        addInstruction("XORI", 1);
-                        addInstruction("STO", stackTop() - 1);
-
-                        addInstruction("LD", stackTop());
-                        addInstruction("OR", stackTop() - 1);
-
-                        stackSize -= 3;
-                        addInstruction("STO", stackTop());
+                    case OP_GREATER_EQ:
+                        addInstruction("sge", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
-                    case OP_SMALLER_EQ: // $n == 1 || $z == 1
-                        pushIsNegative(stackTop());
-                        pushIsZero(stackTop() - 1);
-
-                        addInstruction("LD", stackTop() - 1);
-                        addInstruction("OR", stackTop());
-
-                        stackSize -= 3;
-                        addInstruction("STO", stackTop());
+                    case OP_SMALLER_EQ:
+                        addInstruction("sle", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
-                    case OP_EQUAL: // $z == 1
-                        stackSize -= 2;
-                        pushIsZero(stackTop() + 2);
+                    case OP_EQUAL:
+                        addInstruction("seq", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
-                    case OP_DIFFERENT: // $z == 0
-                        stackSize -= 2;
-                        pushIsZero(stackTop() + 2);
-
-                        addInstruction("LD", stackTop());
-                        addInstruction("XORI", 1);
-                        addInstruction("STO", stackTop());
+                    case OP_DIFFERENT:
+                        addInstruction("sne", "$t0", "$t2", "$zero");
+                        addInstruction("sw", "$t0", "0($sp)");
                         break;
                     }
             }
@@ -153,60 +121,62 @@ void Generator::addBinaryOperation(const OperationType &operationType) {
 void Generator::addUnaryOperation(const OperationType &operationType) {
     switch (operationType) {
         case OP_MINUS_INVERSION:
-            addInstruction("LD", stackTop());
-            addInstruction("NOT");
-            addInstruction("ADDI", 1);
-            addInstruction("STO", stackTop());
+            addInstruction("lw", "$t0", "0($sp)");
+            addInstruction("mul", "$t0", "$t0", "-1");
+            addInstruction("sw", "$t0", "0($sp)");
             break;
         case OP_BIT_NOT:
-            addInstruction("LD", stackTop());
-            addInstruction("NOT");
-            addInstruction("STO", stackTop());
+            addInstruction("lw", "$t0", "0($sp)");
+            addInstruction("not", "$t0", "$t0");
+            addInstruction("sw", "$t0", "0($sp)");
             break;
         case OP_NOT:
-            pushIsZero(stackTop());
-
-            stackSize -= 1;
-            addInstruction("STO", stackTop());
+            addInstruction("lw", "$t0", "0($sp)");
+            addInstruction("seq", "$t0", "$zero");
+            addInstruction("sw", "$t0", "0($sp)");
             break;
     }
 }
 
 void Generator::addMutableUnaryOperation(const OperationType &operationType, const Symbol &symbol) {
-    addInstruction("LD", getFullIdentifier(symbol));
-
     switch (operationType) {
         case OP_INCREMENT_RIGHT:
-            stackSize += 1;
-            addInstruction("STO", stackTop());
-            addInstruction("ADDI", 1);
-            addInstruction("STO", getFullIdentifier(symbol));
+            addInstruction("lw", "$t0", getFullIdentifier(symbol));
+            addInstruction("subi", "$sp", "$sp", 4);
+            addInstruction("sw", "$t0", "0($sp)");
+
+            addInstruction("addi", "$t0", "$t0", 1);
+            addInstruction("sw", "$t0", getFullIdentifier(symbol));
             break;
         case OP_DECREMENT_RIGHT:
-            stackSize += 1;
-            addInstruction("STO", stackTop());
-            addInstruction("SUBI", 1);
-            addInstruction("STO", getFullIdentifier(symbol));
+            addInstruction("lw", "$t0", getFullIdentifier(symbol));
+            addInstruction("subi", "$sp", "$sp", 4);
+            addInstruction("sw", "$t0", "0($sp)");
+
+            addInstruction("subi", "$t0", "$t0", 1);
+            addInstruction("sw", "$t0", getFullIdentifier(symbol));
             break;
         case OP_INCREMENT_LEFT:
-            addInstruction("ADDI", 1);
+            addInstruction("lw", "$t0", getFullIdentifier(symbol));
+            addInstruction("addi", "$t0", "$t0", 1);
+            addInstruction("sw", "$t0", getFullIdentifier(symbol));
 
-            stackSize += 1;
-            addInstruction("STO", stackTop());
-            addInstruction("STO", getFullIdentifier(symbol));
+            addInstruction("subi", "$sp", "$sp", 4);
+            addInstruction("sw", "$t0", "0($sp)");
             break;
         case OP_DECREMENT_LEFT:
-            addInstruction("SUBI", 1);
+            addInstruction("lw", "$t0", getFullIdentifier(symbol));
+            addInstruction("subi", "$t0", "$t0", 1);
+            addInstruction("sw", "$t0", getFullIdentifier(symbol));
 
-            stackSize += 1;
-            addInstruction("STO", stackTop());
-            addInstruction("STO", getFullIdentifier(symbol));
+            addInstruction("subi", "$sp", "$sp", 4);
+            addInstruction("sw", "$t0", "0($sp)");
             break;
     }
 }
 
 void Generator::addMutableUnaryOperationOnArray(const OperationType &operationType, const Symbol &symbol) {
-    addInstruction("LD", stackTop());
+    /*addInstruction("LD", stackTop());
     addInstruction("STO", "$indr");
 
     switch (operationType) {
@@ -234,7 +204,7 @@ void Generator::addMutableUnaryOperationOnArray(const OperationType &operationTy
             addInstruction("STO", stackTop());
             addInstruction("STOV", getFullIdentifier(symbol));
             break;
-    }
+    }*/
 }
 
 void Generator::addLabel(const std::string &label) {
@@ -242,44 +212,38 @@ void Generator::addLabel(const std::string &label) {
 }
 
 void Generator::addJump(const std::string &label) {
-    addInstruction("JMP", label);
+    addInstruction("j", label);
 }
 
 void Generator::addBranchIfFalse(const std::string &label) {
-    addInstruction("LD", stackTop());
-    addInstruction("BEQ", label);
-
-    stackSize -= 1;
+    addInstruction("lw", "$t0", "0($sp)");
+    addInstruction("beq", "$t0", "$zero", label);
+    addInstruction("addi", "$sp", "$sp", 4);
 }
 
 void Generator::addBranchIfTrue(const std::string &label) {
-    addInstruction("LD", stackTop());
-    addInstruction("BNE", label);
-
-    stackSize -= 1;
+    addInstruction("lw", "$t0", "0($sp)");
+    addInstruction("bne", "$t0", "$zero", label);
+    addInstruction("addi", "$sp", "$sp", 4);
 }
 
 void Generator::assignTo(const Symbol &symbol, const OperationType &assignmentOperation) {
     if (assignmentOperation != OP_ASSIGNMENT) {
-        stackSize += 1;
-        addInstruction("LD", stackTop() - 1);
-        addInstruction("STO", stackTop());
-
-        addInstruction("LD", getFullIdentifier(symbol));
-        addInstruction("STO", stackTop() - 1);
+        duplicateStackTop();
+        addInstruction("lw", "$t0", getFullIdentifier(symbol));
+        addInstruction("sw", "$t0", "4($sp)");
 
         addBinaryOperation(getBinaryOperationFromAssignmentType(assignmentOperation).type);
     }
 
-    addInstruction("LD", stackTop());
-    addInstruction("STO", getFullIdentifier(symbol));
-    stackSize -= 1;
+    addInstruction("lw", "$t0", "0($sp)");
+    addInstruction("sw", "$t0", getFullIdentifier(symbol));
+    addInstruction("addi", "$sp", "$sp", 4);
 }
 
 void Generator::assignToArray(const Symbol &symbol, const OperationType &assignmentOperation) {
-    if (assignmentOperation != OP_ASSIGNMENT) {
+    /*if (assignmentOperation != OP_ASSIGNMENT) {
         addInstruction("LD", stackTop());
-
         stackSize += 1;
         addInstruction("STO", stackTop());
 
@@ -296,11 +260,11 @@ void Generator::assignToArray(const Symbol &symbol, const OperationType &assignm
 
     addInstruction("LD", stackTop());
     addInstruction("STOV", getFullIdentifier(symbol));
-    stackSize -= 2;
+    stackSize -= 2;*/
 }
 
 void Generator::addIdentifierDeclaration(const Symbol &symbol) {
-    addToDataSection(getFullIdentifier(symbol) + ": 0");
+    addToDataSection(getFullIdentifier(symbol) + ": .word 0");
 }
 
 void Generator::addArrayIdentifierDeclaration(const Symbol &symbol) {
@@ -314,73 +278,50 @@ void Generator::addArrayIdentifierDeclaration(const Symbol &symbol) {
         }
     }
 
-    addToDataSection(getFullIdentifier(symbol) + ": " + value);
+    addToDataSection(getFullIdentifier(symbol) + ": .word " + value);
 }
 
 void Generator::addPrint() {
-    addInstruction("LD", stackTop());
-    addInstruction("STO", "$out_port");
+    addInstruction("li", "$v0", 1); // TODO: Mudar dependendo se o topo é caractere ou inteiro
+    addInstruction("lw", "$a0", "0($sp)");
+    addInstruction("syscall");
+    addInstruction("addi", "$sp", "$sp", 4);
 
-    stackSize -= 1;
+    addInstruction("li", "$v0", 11);
+    addInstruction("li", "$a0", 10);
+    addInstruction("syscall");
 }
 
 void Generator::addInput() {
-    stackSize += 1;
-
-    addInstruction("LD", "$in_port");
-    addInstruction("STO", stackTop());
-}
-
-void Generator::pushIsNegative(const int &address) {
-    addInstruction("LD", address);
-    addInstruction("SRL", 10);
-    addInstruction("ANDI", 1);
-
-    stackSize += 1;
-    addInstruction("STO", stackTop());
-}
-
-void Generator::pushIsZero(const int &address) {
-    addInstruction("LD", address);
-    addInstruction("SRL", 10);
-    addInstruction("ANDI", 1);
-
-    stackSize += 1;
-    addInstruction("STO", stackTop());
-
-    addInstruction("LD", address);
-    addInstruction("NOT");
-    addInstruction("ADDI", 1);
-    addInstruction("SRL", 10);
-    addInstruction("ANDI", 1);
-
-    addInstruction("OR", stackTop());
-    stackSize -= 1;
-
-    addInstruction("XORI", 1);
-
-    stackSize += 1;
-    addInstruction("STO", stackTop());
+    addInstruction("li", "$v0", 5); // TODO: Criar funções de input para outros tipos
+    addInstruction("syscall");
+    addInstruction("sw", "$v0", "0($sp)");
 }
 
 std::string Generator::getInstructionNameFromOperation(const OperationType &operationType) {
     switch (operationType) {
         case OP_ADDITION:
-            return "ADD";
+            return "add";
         case OP_SUBTRACTION:
-            return "SUB";
+            return "sub";
+        case OP_MULTIPLICATION:
+            return "mul";
+        case OP_DIVISION:
+            break;
+        case OP_MOD:
+            break;
         case OP_OR:
         case OP_BIT_OR:
-            return "OR";
+            return "or";
         case OP_BIT_XOR:
-            return "XOR";
+            return "xor";
         case OP_AND:
         case OP_BIT_AND:
-            return "AND";
+            return "and";
         case OP_BIT_LS:
-            return "SLL";
+            return "sll";
         case OP_BIT_RS:
-            return "SRL";
+            return "srl";
     }
 }
 
@@ -392,19 +333,27 @@ void Generator::addToDataSection(const std::string &string) {
     dataSection += "\t" + string + "\n";
 }
 
-void Generator::addInstruction(const std::string &instruction, const std::string &parameter) {
-    textSection += "\t" + instruction + " " + parameter + "\n";
-}
-
-void Generator::addInstruction(const std::string &instruction, const int &parameter) {
-    textSection += "\t" + instruction + " " + std::to_string(parameter) + "\n";
-}
-
 void Generator::addInstruction(const std::string &instruction) {
-    textSection += "\t" + instruction + " 0\n";
+    textSection += "\t" + instruction + "\n";
 }
 
-int Generator::stackTop() {
-    return baseStackPointer + stackSize - 1;
+void Generator::addInstruction(const std::string &instruction, const std::string &p1) {
+    textSection += "\t" + instruction + " " + p1 + "\n";
+}
+
+void Generator::addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2, const std::string &p3) {
+    textSection += "\t" + instruction + " " + p1 + ", " + p2 + ", " + p3 + "\n";
+}
+
+void Generator::addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2, const int &p3) {
+    textSection += "\t" + instruction + " " + p1 + ", " + p2 + ", " + std::to_string(p3) + "\n";
+}
+
+void Generator::addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2) {
+    textSection += "\t" + instruction + " " + p1 + ", " + p2 + "\n";
+}
+
+void Generator::addInstruction(const std::string &instruction, const std::string &p1, const int &p2) {
+    textSection += "\t" + instruction + " " + p1 + ", " + std::to_string(p2) + "\n";
 }
 

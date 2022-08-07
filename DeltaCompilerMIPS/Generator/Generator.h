@@ -35,22 +35,19 @@ public:
     void addInput();
 
 private:
-    void pushIsNegative(const int &address);
-    void pushIsZero(const int &address);
     std::string getInstructionNameFromOperation(const OperationType &operationType);
     std::string getFullIdentifier(const Symbol &symbol);
     void addToDataSection(const std::string &string);
-    void addInstruction(const std::string &instruction, const std::string &parameter);
-    void addInstruction(const std::string &instruction, const int &parameter);
+
     void addInstruction(const std::string &instruction);
-    int stackTop();
+    void addInstruction(const std::string &instruction, const std::string &p1);
+    void addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2, const std::string &p3);
+    void addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2, const int &p3);
+    void addInstruction(const std::string &instruction, const std::string &p1, const std::string &p2);
+    void addInstruction(const std::string &instruction, const std::string &p1, const int &p2);
 
     std::string dataSection;
     std::string textSection;
-
-    // Stack for temporary data
-    const int baseStackPointer = 1000;
-    int stackSize = 0;
 };
 
 #endif

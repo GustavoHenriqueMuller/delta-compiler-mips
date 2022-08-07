@@ -1,151 +1,77 @@
 .data
-	a_1: 0
-	b_3: 0
+	i_2: .word 0
+	j_3: .word 0
 
 .text
-	LDI 5
-	STO 1000
-	LD 1000
-	STO a_1
-	LD a_1
-	STO 1000
-	LD 1000
-	STO 1001
-	LDI 4
-	STO 1002
-	LD 1001
-	SUB 1002
-	STO 1002
-	LD 1002
-	SRL 10
-	ANDI 1
-	STO 1001
-	LD 1002
-	NOT 0
-	ADDI 1
-	SRL 10
-	ANDI 1
-	OR 1001
-	XORI 1
-	STO 1001
-	LD 1001
-	BEQ when_is_0_end_0
-	LDI 100
-	STO 1001
-	LD 1001
-	STO $out_port
-	JMP when_end_0
-when_is_0_end_0:
-	LD 1000
-	STO 1001
-	LDI 5
-	STO 1002
-	LD 1001
-	SUB 1002
-	STO 1002
-	LD 1002
-	SRL 10
-	ANDI 1
-	STO 1001
-	LD 1002
-	NOT 0
-	ADDI 1
-	SRL 10
-	ANDI 1
-	OR 1001
-	XORI 1
-	STO 1001
-	LD 1001
-	BEQ when_is_1_end_0
-	LDI 100
-	STO 1001
-	LD 1001
-	STO b_3
-	LD b_3
-	STO 1001
-	LD 1001
-	STO 1002
-	LDI 4
-	STO 1003
-	LD 1002
-	SUB 1003
-	STO 1003
-	LD 1003
-	SRL 10
-	ANDI 1
-	STO 1002
-	LD 1003
-	NOT 0
-	ADDI 1
-	SRL 10
-	ANDI 1
-	OR 1002
-	XORI 1
-	STO 1002
-	LD 1002
-	BEQ when_is_0_end_1
-	LDI 200
-	STO 1002
-	LD 1002
-	STO $out_port
-	JMP when_end_1
-when_is_0_end_1:
-	LD 1001
-	STO 1002
-	LDI 100
-	STO 1003
-	LD 1002
-	SUB 1003
-	STO 1003
-	LD 1003
-	SRL 10
-	ANDI 1
-	STO 1002
-	LD 1003
-	NOT 0
-	ADDI 1
-	SRL 10
-	ANDI 1
-	OR 1002
-	XORI 1
-	STO 1002
-	LD 1002
-	BEQ when_is_1_end_1
-	LDI 82
-	STO 1002
-	LD 1002
-	STO $out_port
-	JMP when_end_1
-when_is_1_end_1:
-when_end_1:
-	JMP when_end_0
-when_is_1_end_0:
-	LD 1000
-	STO 1001
-	LDI 7
-	STO 1002
-	LD 1001
-	SUB 1002
-	STO 1002
-	LD 1002
-	SRL 10
-	ANDI 1
-	STO 1001
-	LD 1002
-	NOT 0
-	ADDI 1
-	SRL 10
-	ANDI 1
-	OR 1001
-	XORI 1
-	STO 1001
-	LD 1001
-	BEQ when_is_2_end_0
-	LDI 300
-	STO 1001
-	LD 1001
-	STO $out_port
-	JMP when_end_0
-when_is_2_end_0:
-when_end_0:
-	HLT 0
+	subi $sp, $sp, 4
+	addi $t0, $zero, 0
+	sw $t0, 0($sp)
+	lw $t0, 0($sp)
+	sw $t0, i_2
+	addi $sp, $sp, 4
+for_start_0:
+	subi $sp, $sp, 4
+	lw $t0, i_2
+	sw $t0, 0($sp)
+	subi $sp, $sp, 4
+	addi $t0, $zero, 10
+	sw $t0, 0($sp)
+	lw $t0, 4($sp)
+	lw $t1, 0($sp)
+	sub $t2, $t0, $t1
+	addi $sp, $sp, 8
+	subi $sp, $sp, 4
+	slt $t0, $t2, $zero
+	sw $t0, 0($sp)
+	lw $t0, 0($sp)
+	beq $t0, $zero, for_end_0
+	addi $sp, $sp, 4
+	subi $sp, $sp, 4
+	addi $t0, $zero, 0
+	sw $t0, 0($sp)
+	lw $t0, 0($sp)
+	sw $t0, j_3
+	addi $sp, $sp, 4
+for_start_1:
+	subi $sp, $sp, 4
+	lw $t0, j_3
+	sw $t0, 0($sp)
+	subi $sp, $sp, 4
+	addi $t0, $zero, 20
+	sw $t0, 0($sp)
+	lw $t0, 4($sp)
+	lw $t1, 0($sp)
+	sub $t2, $t0, $t1
+	addi $sp, $sp, 8
+	subi $sp, $sp, 4
+	slt $t0, $t2, $zero
+	sw $t0, 0($sp)
+	lw $t0, 0($sp)
+	beq $t0, $zero, for_end_1
+	addi $sp, $sp, 4
+	subi $sp, $sp, 4
+	lw $t0, j_3
+	sw $t0, 0($sp)
+	li $v0, 1
+	lw $a0, 0($sp)
+	syscall
+	addi $sp, $sp, 4
+	li $v0, 11
+	li $a0, 10
+	syscall
+	lw $t0, j_3
+	subi $sp, $sp, 4
+	sw $t0, 0($sp)
+	addi $t0, $t0, 1
+	sw $t0, j_3
+	j for_start_1
+for_end_1:
+	lw $t0, i_2
+	subi $sp, $sp, 4
+	sw $t0, 0($sp)
+	addi $t0, $t0, 1
+	sw $t0, i_2
+	j for_start_0
+for_end_0:
+	li $v0, 10
+	syscall
