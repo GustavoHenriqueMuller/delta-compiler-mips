@@ -1,5 +1,5 @@
 # DeltaCompilerMIPS
-Compiler for the Delta programming language to MIPS assembly.
+Compiler for the Delta programming language to MIPS assembly (INCOMPLETE: Contains Bugs).
 
 Syntax: ```delta [options] [filepath]```
 
